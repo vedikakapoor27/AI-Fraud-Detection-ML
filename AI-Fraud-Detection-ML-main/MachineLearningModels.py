@@ -2,6 +2,7 @@ import pandas as pd
 import seaborn as sns
 import plotly.express as px
 from matplotlib import pyplot as plt
+
 from sklearn.datasets import load_breast_cancer
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
@@ -19,6 +20,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 
+import joblib  # ⭐ for saving model
+
 
 # ---------------- GLOBAL STORAGE ---------------- #
 all_performances = pd.DataFrame(
@@ -32,16 +35,19 @@ list_model = []
 
 # ---------------- HELPER FUNCTIONS ---------------- #
 def fit_model(model, X_train, y_train):
+    """Train the model"""
     return model.fit(X_train, y_train)
 
 
 def add_list(name, model, y_pred):
+    """Store model info for later comparison"""
     list_clf_name.append(name)
     list_model.append(model)
     list_pred.append(y_pred)
 
 
 def add_all_performances(name, precision, recall, f1, auc):
+    """Store evaluation metrics in dataframe"""
     global all_performances
 
     row = pd.DataFrame(
@@ -54,6 +60,8 @@ def add_all_performances(name, precision, recall, f1, auc):
 
 
 def calculate_scores(y_test, y_pred, name, model):
+    """Calculate ML evaluation metrics"""
+
     accuracy = accuracy_score(y_test, y_pred)
     precision = precision_score(y_test, y_pred)
     recall = recall_score(y_test, y_pred)
@@ -73,6 +81,7 @@ def calculate_scores(y_test, y_pred, name, model):
 
 
 def model_performance(model, X_train, X_test, y_train, y_test):
+    """Train + predict + evaluate one model"""
     name = model.__class__.__name__
 
     trained_model = fit_model(model, X_train, y_train)
@@ -83,6 +92,7 @@ def model_performance(model, X_train, X_test, y_train, y_test):
 
 
 def display_all_confusion_matrices(y_test):
+    """Show confusion matrices of all models"""
     total = len(list_pred)
 
     plt.figure(figsize=(5 * total, 4))
@@ -97,7 +107,9 @@ def display_all_confusion_matrices(y_test):
         plt.title(list_clf_name[i])
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig("confusion_matrices.png")
+    plt.close()
+ 
 
 
 # ---------------- MAIN EXECUTION ---------------- #
@@ -105,7 +117,7 @@ if __name__ == "__main__":
 
     print("🚀 Running Fraud Detection ML Pipeline...\n")
 
-    # Using built-in dataset for demo (works instantly)
+    # Load demo dataset
     data = load_breast_cancer()
     X = pd.DataFrame(data.data, columns=data.feature_names)
     y = pd.Series(data.target)
@@ -115,14 +127,14 @@ if __name__ == "__main__":
         X, y, test_size=0.2, random_state=42
     )
 
-    # Models to train
+    # Models to compare
     models = [
         LogisticRegression(max_iter=5000),
         DecisionTreeClassifier(),
         RandomForestClassifier(),
     ]
 
-    # Train & evaluate
+    # Train and evaluate
     for model in models:
         model_performance(model, X_train, X_test, y_train, y_test)
 
@@ -132,3 +144,10 @@ if __name__ == "__main__":
 
     # Show confusion matrices
     display_all_confusion_matrices(y_test)
+
+    # ⭐ Save BEST model (highest F1 score)
+    best_index = all_performances["f1_score"].astype(float).idxmax()
+    best_model = list_model[best_index]
+
+    joblib.dump(best_model, "model.pkl")
+    print("\n✅ Best model saved as model.pkl")
